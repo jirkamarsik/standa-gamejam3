@@ -42,6 +42,23 @@ def scale_rxy_to_xy(rxy, img=None):
     return xy
 
 
+def scale_xy_to_rxy(xy, img=None):
+    """Scale relative coordinates (like 0.3) to physical pixels in an image
+
+    :param img:
+    :param rxy: tuple of relative position in img, so (rx, ry) where elements
+      are floats in range [0.0, 1.0]
+    :return:
+    """
+    if img is None:
+        img = default_img
+
+    assert 0 <= xy[0] <= img.size[0]
+    assert 0 <= xy[1] <= img.size[1]
+    rxy = (xy[0] / img.size[0], xy[1] / img.size[1])
+    return rxy
+
+
 def transform_text_to_components(draw, text, font, assets):
     """Transform text with assets to list of individual components: texts and images
 
@@ -67,6 +84,18 @@ def transform_text_to_components(draw, text, font, assets):
     return render_lst
 
 
+def render_text(rxy, text, font_size, font=None, text_color="black", align="center", anchor="la", img=None):
+    if img is None:
+        img = default_img
+    if font is None:
+        font = ImageFont.truetype(default_font_file, size=font_size)
+
+    draw = ImageDraw.Draw(img)
+    draw.text(scale_rxy_to_xy(rxy), text, fill=text_color, font=font, anchor=anchor, align=align)
+    [x, y, width, height] = draw.textbbox(scale_rxy_to_xy(rxy), text, font=font, anchor=anchor, align=align)
+    return [scale_xy_to_rxy((x, y)), scale_xy_to_rxy((width, height))]
+
+
 def render_text_with_assets(rxy, text, font_size, font=None, assets=None, text_color="black", align="center", max_width=None, img=None):
     """Render text that may include assets with {asset_name}
 
@@ -87,7 +116,7 @@ def render_text_with_assets(rxy, text, font_size, font=None, assets=None, text_c
     draw = ImageDraw.Draw(img)
     render_lst = transform_text_to_components(draw, text, font, assets)
     if len(render_lst) == 0:
-        return
+        return [rxy, rxy]
     # calculate full width to be rendered
     w = sum([obj_w for (_, obj_w, _) in render_lst])
     if max_width is not None:
@@ -104,7 +133,9 @@ def render_text_with_assets(rxy, text, font_size, font=None, assets=None, text_c
         x0 = x - w
     else:
         assert False, f"Unknown align: {align}"
+    y0 = y
     x = x0
+    y = y0
     max_h = max([obj_h for (_, _, obj_h) in render_lst])
     for obj, obj_w, obj_h in render_lst:
         if x > x0 and max_width is not None and x - x0 + obj_w > max_width:
@@ -116,51 +147,28 @@ def render_text_with_assets(rxy, text, font_size, font=None, assets=None, text_c
         if isinstance(obj, str):
             # render a string
             txt_length = draw.textlength(obj, font=font)
-            draw.text((x, y), obj, font=font, fill=text_color, anchor="lm")
+            draw.text((x, y), obj, font=font, fill=text_color, anchor="la")
             x += txt_length
         else:
             # render an asset image
             img.paste(obj, (int(x), int(y - obj.size[1] / 2)), obj.convert("RGBA"))
             x += obj.size[0]
+    return [scale_xy_to_rxy((x0, y)), scale_xy_to_rxy((x0 + w, y + max_h))]
 
 
-def divide_text_to_lines(draw, width, text, font):
-    """Divide text to lines if text exceeds width
-
-    :param width: in pixels the maximum width
-    :param text: the text to render
-    :param font: the font to use for text
-    :return: new string with added new lines
-    """
-    text_length = draw.textlength(text, font=font)
-    if text_length > width:
-        i = 0
-        space_i = 0
-        while draw.textsize(text[0:i], font=font)[0] < width:
-            if text[i] == " ":
-                space_i = i
-            i += 1
-        beg = text[0:space_i]
-        rest = text[space_i + 1 : len(text)]
-        rest2 = divide_text_to_lines(draw, width, rest, font)
-        return beg + "\n" + rest2
-    return text
-
-
-def render_image(rxy, src_img_url, dst_img=None):
-    """Draw image"""
+def render_image(rxy, width, height, src_img_url, dst_img=None):
     if dst_img is None:
         dst_img = default_img
 
     src_img_fn = get_local_file_from_url(src_img_url)
     logging.info(f"opening {src_img_fn}")
     src_img = Image.open(src_img_fn)
-    # scale src image width to card width
-    new_size = (dst_img.size[0], int(dst_img.size[0] / src_img.size[0] * src_img.size[1]))
+    new_size = scale_rxy_to_xy((width, int(width / src_img.size[0] * src_img.size[1])))
     src_img = src_img.resize(new_size)
     xy = scale_rxy_to_xy(rxy)
     xy = [int(x) for x in xy]
     dst_img.paste(src_img, xy, src_img.convert("RGBA"))
+    return [rxy, (rxy[0] + new_size[0], rxy[1] + new_size[1])]
 
 
 def render_rectangle(rxy, width, height, line_width=int(0.5 * 300 / 25.4), line_color="black", img=None):
@@ -168,10 +176,9 @@ def render_rectangle(rxy, width, height, line_width=int(0.5 * 300 / 25.4), line_
         img = default_img
 
     draw = ImageDraw.Draw(img)
-    draw.rectangle(
-        [scale_rxy_to_xy(rxy), scale_rxy_to_xy((rxy[0] + width, rxy[1] + height))],
-        outline=line_color,
-        width=line_width)
+    bbox = [scale_rxy_to_xy(rxy), scale_rxy_to_xy((rxy[0] + width, rxy[1] + height))]
+    draw.rectangle(bbox, outline=line_color, width=line_width)
+    return bbox
 
 
 def render_ellipse(rxy, width, height, line_width=int(0.5 * 300 / 25.4), line_color="black", img=None):
@@ -179,7 +186,6 @@ def render_ellipse(rxy, width, height, line_width=int(0.5 * 300 / 25.4), line_co
         img = default_img
 
     draw = ImageDraw.Draw(img)
-    draw.ellipse(
-        [scale_rxy_to_xy(rxy), scale_rxy_to_xy((rxy[0] + width, rxy[1] + height))],
-        outline=line_color,
-        width=line_width)
+    bbox = [scale_rxy_to_xy(rxy), scale_rxy_to_xy((rxy[0] + width, rxy[1] + height))]
+    draw.ellipse(bbox, outline=line_color, width=line_width)
+    return bbox
