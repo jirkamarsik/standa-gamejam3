@@ -162,12 +162,24 @@ def render_image(rxy, src_img_url, dst_img=None):
     xy = [int(x) for x in xy]
     dst_img.paste(src_img, xy, src_img.convert("RGBA"))
 
-def render_rectangle(rxy, width, height, line_width=int(300 / 25.4), line_color="black", img=None):
+
+def render_rectangle(rxy, width, height, line_width=int(0.5 * 300 / 25.4), line_color="black", img=None):
     if img is None:
         img = default_img
 
     draw = ImageDraw.Draw(img)
     draw.rectangle(
+        [scale_rxy_to_xy(rxy), scale_rxy_to_xy((rxy[0] + width, rxy[1] + height))],
+        outline=line_color,
+        width=line_width)
+
+
+def render_ellipse(rxy, width, height, line_width=int(0.5 * 300 / 25.4), line_color="black", img=None):
+    if img is None:
+        img = default_img
+
+    draw = ImageDraw.Draw(img)
+    draw.ellipse(
         [scale_rxy_to_xy(rxy), scale_rxy_to_xy((rxy[0] + width, rxy[1] + height))],
         outline=line_color,
         width=line_width)
