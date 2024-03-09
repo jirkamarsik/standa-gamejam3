@@ -2,6 +2,7 @@
 """
 import logging
 import os
+import re
 from pathlib import Path
 
 from PIL import Image, ImageFont
@@ -84,16 +85,47 @@ def render_card(card):
         render_rectangle((0, bot), 1, textbox_height)
         render_text_with_assets((textbox_padding, bot + textbox_padding), card["Speciální pravidla"], textbox_font_size, align="left", max_width=1.0 - 2 * textbox_padding)
 
+    image_height = bot - top
+    image_padding = 0.03
+    if image_height > 2 * image_padding and card["Art"] != "":
+        render_image((image_padding, top + image_padding), 1 - 2 * image_padding, bot - top - 2 * image_padding, card["Art"])
+
     return img
 
+
+COLOR_COUNTS = {}
+COLOR_USAGES = {}
+COLORS = ["R", "G", "B", "Y"]
+
+for color in COLORS:
+    COLOR_COUNTS[color] = 0
+    COLOR_USAGES[color] = 0
 
 def render_cards():
     # create output path
     Path(OUTPUT_PATH).mkdir(parents=True, exist_ok=True)
     # render each card
-    for i, card in enumerate(CARDS, start=2):
-        img = render_card(card)
-        img.save(f"{OUTPUT_PATH}/card_{i:03}.png")
+    i = 2
+    for card in CARDS:
+        count = int(card["Počet"]) if card["Počet"] != "" else 1
+        for _ in range(count):
+            img = render_card(card)
+            img.save(f"{OUTPUT_PATH}/card_{i:03}.png")
+            i = i + 1
+
+            for color in COLORS:
+                m = re.search(r"(\d*)\s*" + color, card["Cena"])
+                if m:
+                    c = int(m.group(1)) if m.group(1) != "" else 1
+                    COLOR_COUNTS[color] = COLOR_COUNTS[color] + c
+                    COLOR_USAGES[color] = COLOR_USAGES[color] + 1
+
+    print("Colors used:")
+    print(COLOR_USAGES)
+
+    print("Color costs summed up:")
+    print(COLOR_COUNTS)
+
 
 
 load_cards()

@@ -3,7 +3,7 @@
 import logging
 import re
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 from util.remote_file import get_local_file_from_url
 
@@ -165,12 +165,14 @@ def render_image(rxy, width, height, src_img_url, dst_img=None):
     src_img_fn = get_local_file_from_url(src_img_url)
     logging.info(f"opening {src_img_fn}")
     src_img = Image.open(src_img_fn)
-    new_size = scale_rxy_to_xy((width, int(width / src_img.size[0] * src_img.size[1])))
-    src_img = src_img.resize(new_size)
+    container_size = scale_rxy_to_xy((width, height))
+    src_img = ImageOps.contain(src_img, container_size)
+    img_size = src_img.size
     xy = scale_rxy_to_xy(rxy)
-    xy = [int(x) for x in xy]
-    dst_img.paste(src_img, xy, src_img.convert("RGBA"))
-    return [rxy, (rxy[0] + new_size[0], rxy[1] + new_size[1])]
+    (x, y) = [int(x) for x in xy]
+    (x, y) = (x + int((container_size[0] - img_size[0]) / 2), y + int((container_size[1] - img_size[1]) / 2))
+    dst_img.paste(src_img, (x, y), src_img.convert("RGBA"))
+    return [scale_xy_to_rxy((x, y)), scale_xy_to_rxy((x + img_size[0], y + img_size[1]))]
 
 
 def render_rectangle(rxy, width, height, line_width=int(0.5 * 300 / 25.4), line_color="black", img=None):
