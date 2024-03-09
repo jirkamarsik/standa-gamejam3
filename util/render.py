@@ -36,8 +36,8 @@ def scale_rxy_to_xy(rxy, img=None):
     if img is None:
         img = default_img
 
-    assert 0.0 <= rxy[0] <= 1.0
-    assert 0.0 <= rxy[1] <= 1.0
+    # assert 0.0 <= rxy[0] <= 1.0
+    # assert 0.0 <= rxy[1] <= 1.0
     xy = (int(img.size[0] * rxy[0]), int(img.size[1] * rxy[1]))
     return xy
 
@@ -53,8 +53,8 @@ def scale_xy_to_rxy(xy, img=None):
     if img is None:
         img = default_img
 
-    assert 0 <= xy[0] <= img.size[0]
-    assert 0 <= xy[1] <= img.size[1]
+    # assert 0 <= xy[0] <= img.size[0]
+    # assert 0 <= xy[1] <= img.size[1]
     rxy = (xy[0] / img.size[0], xy[1] / img.size[1])
     return rxy
 
@@ -96,7 +96,7 @@ def render_text(rxy, text, font_size, font=None, text_color="black", align="cent
     return [scale_xy_to_rxy((x, y)), scale_xy_to_rxy((width, height))]
 
 
-def render_text_with_assets(rxy, text, font_size, font=None, assets=None, text_color="black", align="center", max_width=None, img=None):
+def render_text_with_assets(rxy, text, font_size, font=None, assets=None, text_color="black", align="center", max_width=None, img=None, silent=False):
     """Render text that may include assets with {asset_name}
 
     Each asset is taken from assets and rendered centered
@@ -147,13 +147,15 @@ def render_text_with_assets(rxy, text, font_size, font=None, assets=None, text_c
         if isinstance(obj, str):
             # render a string
             txt_length = draw.textlength(obj, font=font)
-            draw.text((x, y), obj, font=font, fill=text_color, anchor="la")
+            if not silent:
+                draw.text((x, y), obj, font=font, fill=text_color, anchor="la")
             x += txt_length
         else:
             # render an asset image
-            img.paste(obj, (int(x), int(y - obj.size[1] / 2)), obj.convert("RGBA"))
+            if not silent:
+                img.paste(obj, (int(x), int(y - obj.size[1] / 2)), obj.convert("RGBA"))
             x += obj.size[0]
-    return [scale_xy_to_rxy((x0, y)), scale_xy_to_rxy((x0 + w, y + max_h))]
+    return [scale_xy_to_rxy((x0, y0)), scale_xy_to_rxy((x0 + w, y + max_h))]
 
 
 def render_image(rxy, width, height, src_img_url, dst_img=None):

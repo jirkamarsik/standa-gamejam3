@@ -19,7 +19,8 @@ def download_gsheets(sheet_id, sheet_name):
     :param sheet_name: name of the sheet that has data, which is shown at the bottom tabs.
     :return: Pandas DF
     """
-    url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={quote(sheet_name)}"
+    url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
+    # url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={quote(sheet_name)}"
     logging.info(f"downloading from {url}")
     return pd.read_csv(url, keep_default_na=False).to_dict("records")
 
