@@ -1,15 +1,12 @@
-""" Generate card images from card specification in CSV
-"""
 import logging
 import os
 import re
 from pathlib import Path
 
-from PIL import Image, ImageFont
+from PIL import Image
 
 from util.gsheets import download_gsheets
-from util.remote_file import get_local_file_from_url
-from util.render import scale_rxy_to_xy, render_text, render_text_with_assets, render_image, render_rectangle, render_ellipse, set_default_img, set_default_assets, set_default_font_file
+from util.render import render_text, render_text_with_assets, render_image, render_rectangle, render_ellipse, set_default_img, set_default_assets, set_default_font_file
 
 
 logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
@@ -18,8 +15,7 @@ logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
 # Cards are defined in this Google sheet
 CARD_SHEET_ID = "1vFIjrfHucrlN7fgcWcHVCxhSoMAYFCqkb8QN9GgcH2w"
 CARD_SHEET_NAME = "cards"
-# Card images go to OUTPUT_PATH
-OUTPUT_PATH = "data/cards"
+
 
 DPI = 300
 
@@ -30,23 +26,26 @@ PT = DPI * 1 / 72
 
 CARD_SIZE = (int(2.5 * INCH), int(3.5 * INCH))
 
-ASSET_SIZE = (int(5 * MM), int(5 * MM))
-ASSETS = {}
-
 FONT_FILE = "assets/fonts/Tinos-Regular.ttf"
 
 
-CARDS = []
-
 def load_cards():
-    global CARDS
-    CARDS = download_gsheets(CARD_SHEET_ID, CARD_SHEET_NAME)
+    cards = []
+    sheet = download_gsheets(CARD_SHEET_ID, CARD_SHEET_NAME)
+    for card in sheet:
+        # dropneme prazdne radky a jine nekompletni poznamky (e.g. suma poctu karet)
+        if card["Název"] == "":
+            continue
+        count = int(card["Počet"]) if card["Počet"] != "" else 1
+        for _ in range(count):
+            cards.append(card)
+    return cards
 
 
 def render_card(card):
     img = Image.new("RGB", CARD_SIZE, color="white")
     set_default_img(img)
-    set_default_assets(ASSETS)
+    set_default_assets({})
     set_default_font_file(FONT_FILE)
     top = 0
 
@@ -99,45 +98,35 @@ def render_card(card):
     return img
 
 
-COLOR_COUNTS = {}
-COLOR_USAGES = {}
+def count_colors(cards):
+    color_usages = {}
+    color_costs = {}
 
-COLORS = ["R", "G", "B", "Y"]
+    colors = ["R", "G", "B", "Y"]
 
-for color in COLORS:
-    COLOR_COUNTS[color] = 0
-    COLOR_USAGES[color] = 0
+    for color in colors:
+        color_usages[color] = 0
+        color_costs[color] = 0
 
-def render_cards():
-    # create output path
-    Path(OUTPUT_PATH).mkdir(parents=True, exist_ok=True)
-    # render each card
-    i = 1
-    for card in CARDS:
-        if card["Název"] == "":
-            continue
-        count = int(card["Počet"]) if card["Počet"] != "" else 1
-        for _ in range(count):
-            img = render_card(card)
-            img.save(f"{OUTPUT_PATH}/card_{i:03}.png")
-            i = i + 1
-
-            for color in COLORS:
-                m = re.search(r"(\d*)\s*" + color, card["Cena"])
-                if m:
-                    c = int(m.group(1)) if m.group(1) != "" else 1
-                    COLOR_COUNTS[color] = COLOR_COUNTS[color] + c
-                    COLOR_USAGES[color] = COLOR_USAGES[color] + 1
+    for card in cards:
+        for color in colors:
+            m = re.search(r"(\d*)\s*" + color, card["Cena"])
+            if m:
+                c = int(m.group(1)) if m.group(1) != "" else 1
+                color_usages[color] = color_usages[color] + 1
+                color_costs[color] = color_costs[color] + c
 
     print("Colors used:")
-    print(COLOR_USAGES)
+    print(color_usages)
 
     print("Color costs summed up:")
-    print(COLOR_COUNTS)
-
-    print("Number of cards:")
-    print(i - 1)
+    print(color_costs)
 
 
-
-load_cards()
+def render_cards(cards, output_path):
+    # create output path
+    Path(output_path).mkdir(parents=True, exist_ok=True)
+    # render each card
+    for i, card in enumerate(cards, 1):
+        img = render_card(card)
+        img.save(f"{output_path}/card_{i:03}.png")

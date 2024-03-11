@@ -20,6 +20,7 @@ def download_gsheets(sheet_id, sheet_name):
     :return: Pandas DF
     """
     url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
+    # tenhle odkaz uz nam nefunguje, zacal nam generovat rozbite CSV
     # url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={quote(sheet_name)}"
     logging.info(f"downloading from {url}")
     return pd.read_csv(url, keep_default_na=False).to_dict("records")
