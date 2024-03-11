@@ -175,13 +175,13 @@ def render_image(rxy, width, height, src_img_url, dst_img=None):
     return [scale_xy_to_rxy((x, y)), scale_xy_to_rxy((x + img_size[0], y + img_size[1]))]
 
 
-def render_rectangle(rxy, width, height, line_width=int(0.5 * 300 / 25.4), line_color="black", img=None):
+def render_rectangle(rxy, width, height, line_width=int(0.5 * 300 / 25.4), line_color="black", fill_color=None, img=None):
     if img is None:
         img = default_img
 
     draw = ImageDraw.Draw(img)
     bbox = [scale_rxy_to_xy(rxy), scale_rxy_to_xy((rxy[0] + width, rxy[1] + height))]
-    draw.rectangle(bbox, outline=line_color, width=line_width)
+    draw.rectangle(bbox, outline=line_color, width=line_width, fill=fill_color)
     return bbox
 
 

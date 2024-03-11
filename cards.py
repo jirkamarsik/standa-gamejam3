@@ -76,7 +76,7 @@ def render_card(card):
         render_text((ability_padding + slot_width / 2, bot + ability_padding + slot_height / 2), card[f"Pole {i} - podmínky"], requirement_font_size, anchor="mm")
         render_text_with_assets((2 * ability_padding + slot_width, bot + ability_padding), card[f"Pole {i} - efekt"], ability_font_size, align="left", max_width=1.0 - 3 * ability_padding - slot_width)
 
-    if card[f"Speciální pravidla"]:
+    if card["Speciální pravidla"]:
         textbox_padding = 0.03
         textbox_font_size = int(12 * PT)
         textbox_bbox = render_text_with_assets((0, 0), card["Speciální pravidla"], textbox_font_size, align="left", max_width=1.0 - 2 * textbox_padding, silent=True)
@@ -90,11 +90,18 @@ def render_card(card):
     if image_height > 2 * image_padding and card["Art"] != "":
         render_image((image_padding, top + image_padding), 1 - 2 * image_padding, bot - top - 2 * image_padding, card["Art"])
 
+    vb_width = 0.4 * INCH / CARD_SIZE[0]
+    vb_height = 0.4 * INCH / CARD_SIZE[1]
+    if card["VB"] != "" and card["VB"] != "0" and card["VB"] != 0:
+        render_rectangle((0, top), vb_width, vb_height, fill_color="white")
+        render_text((vb_width / 2, top + vb_height / 2), str(card["VB"]), font_size=int(16 * PT), anchor="mm")
+
     return img
 
 
 COLOR_COUNTS = {}
 COLOR_USAGES = {}
+
 COLORS = ["R", "G", "B", "Y"]
 
 for color in COLORS:
@@ -105,8 +112,10 @@ def render_cards():
     # create output path
     Path(OUTPUT_PATH).mkdir(parents=True, exist_ok=True)
     # render each card
-    i = 2
+    i = 1
     for card in CARDS:
+        if card["Název"] == "":
+            continue
         count = int(card["Počet"]) if card["Počet"] != "" else 1
         for _ in range(count):
             img = render_card(card)
@@ -125,6 +134,9 @@ def render_cards():
 
     print("Color costs summed up:")
     print(COLOR_COUNTS)
+
+    print("Number of cards:")
+    print(i - 1)
 
 
 
